@@ -1,0 +1,228 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+
+#include "includes/queryprotocol.h"
+#include "queryclient.h"
+
+char *port_string = "1500";
+unsigned short int port; 
+char *ip = "127.0.0.1";
+
+void RunQueryHelper(int out_fd, int in_fd, const char *query) {
+  
+  // Connect
+  char resp[1000];
+  int len; 
+  // Listen for ACK
+
+  len = read(in_fd, resp, 999);
+  resp[len] = '\0';
+  //  printf("from server: %s\n", resp);
+  
+  int c_result = CheckAck(resp); 
+    
+  // Send query
+  write(out_fd, query, strlen(query));
+  //  printf("to server: %s\n", query);
+  
+  // Listen for num responses
+  len = read(in_fd, resp, 999);
+  resp[len] = '\0';
+  //  printf("from server: %s\n", resp);
+    
+  int num_resp = atoi(resp);
+  //  printf("%d results: \n\n", num_resp); 
+    
+  // Send ACK
+  SendAck(out_fd); 
+    
+  // Loop through responses and print out
+  for (int i=0; i<num_resp; i++) {
+    len = read(in_fd, resp, 999);
+    resp[len] = '\0';
+    printf("%s\n", resp);
+    SendAck(out_fd); 
+  }
+
+  len = read(in_fd, resp, 999);
+  resp[len] = '\0';
+  //  printf("from server: %s\n", resp);
+
+
+}
+
+void RunQuery(char *query) {
+
+  port = atoi(port_string); 
+
+  int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+
+  /*
+    struct sockaddr_in {
+    short            sin_family;   // e.g. AF_INET, AF_INET6
+    unsigned short   sin_port;     // e.g. htons(3490)
+    struct in_addr   sin_addr;     // see struct in_addr, below
+    char             sin_zero[8];  // zero this if you want to
+    };
+  */
+
+  struct sockaddr_in address;
+  address.sin_family = AF_INET;
+  address.sin_port = htons(port);
+  inet_pton(AF_INET, ip, &(address.sin_addr.s_addr));
+
+  /* // FROM http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
+     serv_addr.sin_family = AF_INET;
+     bcopy((char *)server->h_addr, 
+     (char *)&serv_addr.sin_addr.s_addr,
+     server->h_length);
+     serv_addr.sin_port = htons(portno);
+  */
+
+  if(connect(sock_fd, (struct sockaddr *)&address, sizeof(address)) == -1){
+    perror("connect");
+    exit(2);
+  }
+  else{
+    printf("Connected to movie server.\n\n"); 
+  }
+
+  /* // Connect */
+  /* char resp[1000]; */
+  /* int len;  */
+  /* // Listen for ACK */
+  /* len = read(sock_fd, resp, 999); */
+  /* resp[len] = '\0'; */
+    
+  /* int c_result = CheckAck(resp);  */
+    
+  /* // Send query */
+  /* write(sock_fd, query, strlen(query)); */
+    
+  /* // Listen for num responses */
+  /* len = read(sock_fd, resp, 999); */
+  /* resp[len] = '\0'; */
+  /* int num_resp = atoi(resp); */
+  /* printf("%d results: \n\n", num_resp);  */
+    
+  /* // Send ACK */
+  /* SendAck(sock_fd);  */
+    
+  /* // Loop through responses and print out */
+  /* for (int i=0; i<num_resp; i++) { */
+  /*   len = read(sock_fd, resp, 999); */
+  /*   resp[len] = '\0'; */
+  /*   printf("%s\n", resp); */
+  /*   SendAck(sock_fd);  */
+  /* } */
+
+  RunQueryHelper(sock_fd, sock_fd, query); 
+
+  // Close the connection and wait for another query
+  close(sock_fd);
+
+}
+
+void KillServer() {
+  
+  port = atoi(port_string); 
+
+  int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+
+  /*
+    struct sockaddr_in {
+    short            sin_family;   // e.g. AF_INET, AF_INET6
+    unsigned short   sin_port;     // e.g. htons(3490)
+    struct in_addr   sin_addr;     // see struct in_addr, below
+    char             sin_zero[8];  // zero this if you want to
+    };
+  */
+
+  struct sockaddr_in address;
+  address.sin_family = AF_INET;
+  address.sin_port = htons(port);
+  inet_pton(AF_INET, ip, &(address.sin_addr.s_addr));
+
+  /* // FROM http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
+     serv_addr.sin_family = AF_INET;
+     bcopy((char *)server->h_addr, 
+     (char *)&serv_addr.sin_addr.s_addr,
+     server->h_length);
+     serv_addr.sin_port = htons(portno);
+  */
+
+  if(connect(sock_fd, (struct sockaddr *)&address, sizeof(address)) == -1){
+    perror("connect");
+    exit(2);
+  }
+  else{
+    printf("Connection is good!\n"); 
+  }
+
+  // Connect
+  char resp[1000];
+  int len; 
+  // Listen for ACK
+  len = read(sock_fd, resp, 999);
+  resp[len] = '\0';
+    
+  int c_result = CheckAck(resp);
+
+  // Send Kill
+  SendKill(sock_fd); 
+    
+  // Close the connection and wait for another query
+  close(sock_fd);
+
+}
+
+void RunPrompt() {
+  char input[1000];
+
+    while (1) {
+    printf("Enter a term to search for, q to quit or k to kill: ");
+    scanf("%s", input);
+
+    printf("input was: %s\n", input); 
+    
+    if (strlen(input) == 1) {
+      if (input[0] == 'q') {
+	printf("Thanks for playing! \n");
+	return; 
+      } else {
+	if ((input[0] == 'k') || input[0] == 'K') {
+	  KillServer();
+	  return; 
+	}
+      }
+      }
+       
+    printf("\n\n");
+    
+    RunQuery(input);
+    
+      }
+}
+
+/*
+int main(int argc, char **argv) {  
+  if (argc != 3) {
+    printf("Incorrect number of arguments. \n");
+    printf("Correct usage: ./queryclient [IP] [port]\n"); 
+  } else {
+    ip = argv[1]; 
+    port_string = argv[2];
+  }
+
+  RunPrompt(); 
+
+  return 0;
+}
+
+*/
