@@ -6,7 +6,7 @@
 * allows for multiple client connections to a multi-server
 * searches for movies based on titles
 
-
+## Notes
 * Makefile
 * queryclient.c: pulled the client-server comm to a different functions
 * queryclient.h: reflects changes to queryclient.c
