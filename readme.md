@@ -1,4 +1,10 @@
+# Movie Search Engine
 
+## Use:
+
+* Parses and indexes CSV files containing movie titles
+* allows for multiple client connections to a multi-server
+* searches for movies based on titles
 
 
 * Makefile
